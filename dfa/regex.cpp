@@ -13,10 +13,10 @@ Regex::~Regex() {
 }
 
 bool Regex::ProcessChar(int c, stack<int> *ops, stack<Tree*> *nodes) {
-    Tree *tree = nodes->top();
-
     Tree *new_tree = new Tree(NORMAL, c);
-    if (tree) {
+
+    if (nodes->size() > 0) {
+        Tree *tree = nodes->top();nodes->pop();
         Tree *parent = new Tree(CAT);
         parent->set_left(tree);
         parent->set_right(new_tree);
