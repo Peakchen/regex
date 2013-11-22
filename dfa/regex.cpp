@@ -1,6 +1,8 @@
 #include <iostream>
 #include <ctype.h>
+#include <list>
 #include "regex.h"
+#include "state.h"
 #include "stream.h"
 #include "tree.h"
 
@@ -12,12 +14,20 @@ Regex::Regex() {
 Regex::~Regex() {
 }
 
+void Regex::AddTree(Tree *tree) {
+  tree_map_[tree->get_index()] = tree;
+}
+
 Tree* Regex::ProcessChar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes) {
   Tree *right = new Tree(NORMAL, c);
+  AddTree(right);
+
+  chars_map_[c] = true;
 
   if (nodes->size() > 0) {
     Tree *left = nodes->top();nodes->pop();
     Tree *parent = new Tree(CAT);
+    AddTree(parent);
     parent->set_left(left);
     parent->set_right(right);
     nodes->push(parent);
@@ -67,8 +77,10 @@ Tree* Regex::ProcessAlter(int c, Stream *stream, stack<int> *ops, stack<Tree*> *
       right = ProcessGroup(next, stream, ops, nodes);
     } else {
       right = new Tree(NORMAL, next);
+      AddTree(right);
     }
     Tree *parent = new Tree(ALTER);
+    AddTree(parent);
     parent->set_left(left);
     parent->set_right(left);
     // for nullable
@@ -127,6 +139,7 @@ Tree* Regex::ProcessStar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *n
   }
   Tree *old_node = nodes->top(); nodes->pop();
   Tree *parent = new Tree(START);
+  AddTree(parent);
   parent->set_left(old_node);
   // for nullable
   parent->set_nullable(true);
@@ -146,7 +159,7 @@ Tree* Regex::ProcessStar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *n
   return parent;
 }
 
-bool Regex::ConstructTree(const char *str) {
+Tree* Regex::ConstructTree(const char *str) {
   int c;
   Stream stream(str);
   stack<int> ops;
@@ -161,7 +174,7 @@ bool Regex::ConstructTree(const char *str) {
         tree = ProcessGroup(c, &stream, &ops, &nodes);
       } else if (c == ')') {
         cout << "error\n";
-        return false;
+        return NULL;
       } else if (c == '|') {
         tree = ProcessAlter(c, &stream, &ops, &nodes);
       } else if (c == '*') {
@@ -171,18 +184,83 @@ bool Regex::ConstructTree(const char *str) {
   }
 
   Tree *parent = new Tree(CAT);
+  AddTree(parent);
   parent->set_left(tree);
-  parent->set_right(new Tree(END));
+  Tree *right = new Tree(END);
+  AddTree(right);
+  parent->set_right(right);
 
-  return true;
+  return parent;
 }
 
 bool Regex::Compile(const char *str) {
-  ConstructTree(str);
+  Tree *root = NULL;
+
+  root = ConstructTree(str);
+  return ConstructDFA(root);
+}
+
+bool Regex::ConstructDFA(Tree *root) {
+  list<State *> unmarked_states;
+  State *state;
+
+  state = new State(root->get_firstpos());
+  unmarked_states.push_back(state);
+  while (!unmarked_states.empty()) {
+    state = unmarked_states.front(); unmarked_states.pop_front();
+    state_map_[state->get_index()] = state;
+    state->set_marked();
+    const set<Tree*> &tree_set = state->get_tree_set();
+
+    map<int, bool>::iterator iter;
+    for (iter = chars_map_.begin(); iter != chars_map_.end(); ++iter) {
+      int c = iter->first;
+      set<Tree*> followset;
+      set<Tree*>::const_iterator tree_iter;
+      for (tree_iter = tree_set.begin();
+           tree_iter != tree_set.end(); ++tree_iter) {
+        Tree *tree = *tree_iter;
+        if (tree->get_type() == NORMAL && tree->get_char() == c) {
+          followset.insert((*tree_iter)->get_follow_pos().begin(),
+                           (*tree_iter)->get_follow_pos().end());
+        }
+      }
+      // if this state already exist??
+      State *follow_state = NULL;
+      map<int, State*>::iterator state_iter;
+      for (state_iter = state_map_.begin();
+           state_iter != state_map_.end(); ++state_iter) {
+        if (state_iter->second->get_tree_set() == followset) {
+          follow_state = state_iter->second;
+          break;
+        }
+      }
+      if (follow_state == NULL) {
+        follow_state = new State(followset);
+        unmarked_states.push_back(follow_state);
+      }
+      state->AddTransferState(c, follow_state);
+    }
+  }
 
   return true;
 }
 
 bool Regex::Match(const char *str) {
+  State *state;
+
+  cout << "Try match: " << str << endl;
+  state = state_map_[1];
+  if (state == NULL) {
+    return NULL;
+  }
+  while (str && *str) {
+    state = state->get_transter_state(*str);
+    if (state == NULL) {
+      cout << "unmatch: " << *str << endl;
+      return false;
+    }
+    ++str;
+  }
   return true;
 }

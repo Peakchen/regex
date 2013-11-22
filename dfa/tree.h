@@ -56,9 +56,10 @@ public:
   void add_followpos(const set<Tree*>& pos) {
     set<Tree*>::iterator iter;
     for (iter = pos.begin(); iter != pos.end(); ++iter) {
-      follow_pos.insert(*iter);
+      follow_pos_.insert(*iter);
     }
   }
+  const set<Tree*>& get_follow_pos() const { return follow_pos_;}
 
   void set_left(Tree* left) {
       left_ = left;
@@ -94,7 +95,7 @@ private:
     bool          nullable_;
     set<Tree*> first_pos_;
     set<Tree*> last_pos_;
-    set<Tree*> follow_pos;
+    set<Tree*> follow_pos_;
 };
 
 int Tree::gIndex = 1;
