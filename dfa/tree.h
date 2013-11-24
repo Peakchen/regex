@@ -7,22 +7,22 @@
 using namespace std;
 
 enum TreeType {
-    NORMAL = 0,
-    CAT,
-    START,
-    ALTER,
-    END,
+  NORMAL = 0,
+  CAT,
+  START,
+  ALTER,
+  END,
 };
 
 class Tree {
 public:
   Tree(TreeType type, int c = -1)
     : type_(type),
-      c_(c),
-      left_(NULL),
-      right_(NULL),
-      parent_(NULL),
-      nullable_(false) {
+    c_(c),
+    left_(NULL),
+    right_(NULL),
+    parent_(NULL),
+    nullable_(false) {
     index_ = gIndex;
     ++gIndex;
     cout << "new tree type: " << type << ", c: " << c << "\n";
@@ -58,40 +58,40 @@ public:
   const set<Tree*>& get_follow_pos() const { return follow_pos_;}
 
   void set_left(Tree* left) {
-      left_ = left;
-      left_->set_parent(this);
+    left_ = left;
+    left_->set_parent(this);
   }
 
   void set_right(Tree *right) {
-      right_ = right;
-      left_->set_parent(this);
+    right_ = right;
+    left_->set_parent(this);
   }
 
   void set_parent(Tree *parent) {
-      parent_ = parent;
+    parent_ = parent;
   }
 
   Tree* get_left() {
-      return left_;
+    return left_;
   }
 
   Tree* get_right() {
-      return right_;
+    return right_;
   }
 
 private:
-    static int gIndex;
+  static int gIndex;
 
-    int      index_;
-    TreeType type_;
-    int      c_;
-    Tree    *left_, *right_;
-    Tree    *parent_;
+  int      index_;
+  TreeType type_;
+  int      c_;
+  Tree    *left_, *right_;
+  Tree    *parent_;
 
-    bool          nullable_;
-    set<Tree*> first_pos_;
-    set<Tree*> last_pos_;
-    set<Tree*> follow_pos_;
+  bool       nullable_;
+  set<Tree*> first_pos_;
+  set<Tree*> last_pos_;
+  set<Tree*> follow_pos_;
 };
 
 #endif  // __TREE_H__

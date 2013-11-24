@@ -25,6 +25,7 @@ Tree* Regex::NewCharNode(int c) {
   AddTree(tree);
   set<Tree*> pos;
   pos.insert(tree);
+  // N = char node;fisrpos(N) = lastpos(N) = {N}
   tree->add_firstpos(pos);
   tree->add_lastpos(pos);
 
@@ -46,14 +47,22 @@ Tree* Regex::ProcessChar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *n
     if (left->get_nullable() && right->get_nullable()) {
       parent->set_nullable(true);
     }
+
     // for first pos
+    // for cat node(N) = c1c2
+    // if (c1->nullable()) then firstnode(N) = firstnode(c1) + firstnode(c2)
+    // else firstnode(N) = firstnode(c1)
     if (left->get_nullable()) {
       parent->add_firstpos(left->get_firstpos());
       parent->add_firstpos(right->get_firstpos());
     } else {
       parent->add_firstpos(left->get_firstpos());
     }
+
     // for last pos
+    // for cat node(N) = c1c2
+    // if (c2->nullable()) then lastpos(N) = lastpos(c1) + lastpos(c2)
+    // else lastpos(N) = lastpos(c2)
     if (right->get_nullable()) {
       parent->add_lastpos(left->get_lastpos());
       parent->add_lastpos(right->get_lastpos());
@@ -62,7 +71,7 @@ Tree* Regex::ProcessChar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *n
     }
 
     // for follow pos
-    // for cat node N=c1c2: follow_pos(last_pos(c1)) = first_pos(c2)
+    // for cat node(N)=c1c2: follow_pos(last_pos(c1)) = first_pos(c2)
     set<Tree*>::iterator iter;
     const set<Tree*>& last_pos = left->get_lastpos();
     for (iter = last_pos.begin(); iter != last_pos.end(); ++iter) {
