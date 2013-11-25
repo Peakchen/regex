@@ -5,8 +5,7 @@
 int State::gIndex_ = 1;
 
 State::State(const set<Tree*> &tree_set)
-  : marked_(false),
-    acceptable_(false) {
+  : acceptable_(false) {
   index_ = gIndex_;
   ++gIndex_;
   tree_set_ = tree_set;

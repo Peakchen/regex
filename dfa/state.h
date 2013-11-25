@@ -17,10 +17,6 @@ public:
     return tree_set_;
   }
 
-  void set_marked() {
-    marked_ = true;
-  }
-
   bool get_acceptable() const {
     return acceptable_;
   }
@@ -37,7 +33,6 @@ public:
 private:
   map<int, State*> transfer_map_;
   set<Tree*> tree_set_;
-  bool marked_;
   bool acceptable_;
   int  index_;
   static int gIndex_;

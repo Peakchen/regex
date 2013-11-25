@@ -70,7 +70,7 @@ void  Regex::ProcessCatPos(Tree *parent, Tree *left, Tree *right) {
   }
 }
 
-Tree* Regex::ProcessChar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes) {
+Tree* Regex::ProcessChar(int c, Stream *stream, stack<Tree*> *nodes) {
   Tree *right = NewCharNode(c);
 
   if (nodes->size() > 0) {
@@ -88,7 +88,7 @@ Tree* Regex::ProcessChar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *n
   }
 }
 
-Tree* Regex::ProcessAlter(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes) {
+Tree* Regex::ProcessAlter(int c, Stream *stream, stack<Tree*> *nodes) {
   int next;
   Tree *tree;
 
@@ -101,7 +101,7 @@ Tree* Regex::ProcessAlter(int c, Stream *stream, stack<int> *ops, stack<Tree*> *
     Tree *left  = nodes->top(); nodes->pop();
     Tree *right = NULL;
     if (next == '(') {
-      right = ProcessGroup(next, stream, ops, nodes);
+      right = ProcessGroup(next, stream, nodes);
     } else {
       right = NewCharNode(next);
     }
@@ -128,23 +128,22 @@ Tree* Regex::ProcessAlter(int c, Stream *stream, stack<int> *ops, stack<Tree*> *
   return NULL;
 }
 
-Tree* Regex::ProcessGroup(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes) {
+Tree* Regex::ProcessGroup(int c, Stream *stream, stack<Tree*> *nodes) {
   Tree *tree;
-  stack<int> new_ops;
   stack<Tree*> new_nodes;
 
   while ((c = stream->Read()) != '\0') {
     if (isalpha(c)) {
-      tree = ProcessChar(c, stream, &new_ops, &new_nodes);
+      tree = ProcessChar(c, stream, &new_nodes);
     } else {
       if (c == '(') {
-        tree = ProcessGroup(c, stream, &new_ops, &new_nodes);
+        tree = ProcessGroup(c, stream, &new_nodes);
       } else if (c == ')') {
         break;
       } else if (c == '|') {
-        tree = ProcessAlter(c, stream, &new_ops, &new_nodes);
+        tree = ProcessAlter(c, stream, &new_nodes);
       } else if (c == '*') {
-        tree = ProcessStar(c, stream, &new_ops, &new_nodes);
+        tree = ProcessStar(c, stream, &new_nodes);
       }
     }
   }
@@ -158,7 +157,7 @@ Tree* Regex::ProcessGroup(int c, Stream *stream, stack<int> *ops, stack<Tree*> *
   return tree;
 }
 
-Tree* Regex::ProcessStar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes) {
+Tree* Regex::ProcessStar(int c, Stream *stream, stack<Tree*> *nodes) {
   if (nodes->size() < 1) {
     cout << "ProcessStar error\n";
     return NULL;
@@ -188,23 +187,22 @@ Tree* Regex::ProcessStar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *n
 Tree* Regex::ConstructTree(const char *str) {
   int c;
   Stream stream(str);
-  stack<int> ops;
   stack<Tree*> nodes;
   Tree *tree;
 
   while ((c = stream.Read()) != '\0') {
     if (isalpha(c)) {
-      tree = ProcessChar(c, &stream, &ops, &nodes);
+      tree = ProcessChar(c, &stream, &nodes);
     } else {
       if (c == '(') {
-        tree = ProcessGroup(c, &stream, &ops, &nodes);
+        tree = ProcessGroup(c, &stream, &nodes);
       } else if (c == ')') {
         cout << "error\n";
         return NULL;
       } else if (c == '|') {
-        tree = ProcessAlter(c, &stream, &ops, &nodes);
+        tree = ProcessAlter(c, &stream, &nodes);
       } else if (c == '*') {
-        tree = ProcessStar(c, &stream, &ops, &nodes);
+        tree = ProcessStar(c, &stream, &nodes);
       }
     }
   }
@@ -290,14 +288,15 @@ void Regex::PrintTree() {
 
 bool Regex::ConstructDFA() {
   list<State *> unmarked_states;
+  map<set<Tree*>, State*> existed_states;
   State *state;
 
   state = new State(root_->get_firstpos());
+  existed_states[root_->get_firstpos()] = state;
   unmarked_states.push_back(state);
   while (!unmarked_states.empty()) {
     state = unmarked_states.front(); unmarked_states.pop_front();
     state_map_[state->get_index()] = state;
-    state->set_marked();
     const set<Tree*> &tree_set = state->get_tree_set();
 
     map<int, bool>::iterator iter;
@@ -313,8 +312,9 @@ bool Regex::ConstructDFA() {
                            (*tree_iter)->get_follow_pos().end());
         }
       }
-      // if this state already exist??
       State *follow_state = NULL;
+      /*
+      // if this state already exist??
       map<int, State*>::iterator state_iter;
       for (state_iter = state_map_.begin();
            state_iter != state_map_.end(); ++state_iter) {
@@ -323,9 +323,15 @@ bool Regex::ConstructDFA() {
           break;
         }
       }
-      if (follow_state == NULL) {
+      */
+      // if this state already exist??
+      map<set<Tree*>, State*>::iterator iter = existed_states.find(followset);
+      if (iter == existed_states.end()) {
         follow_state = new State(followset);
         unmarked_states.push_back(follow_state);
+        existed_states[followset] = follow_state;
+      } else {
+        follow_state = iter->second;
       }
       state->AddTransferState(c, follow_state);
     }

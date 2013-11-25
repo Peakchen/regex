@@ -20,10 +20,10 @@ public:
 
 private:
     Tree* ConstructTree(const char *str);
-    Tree* ProcessChar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
-    Tree* ProcessAlter(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
-    Tree* ProcessGroup(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
-    Tree* ProcessStar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
+    Tree* ProcessChar(int c, Stream *stream, stack<Tree*> *nodes);
+    Tree* ProcessAlter(int c, Stream *stream, stack<Tree*> *nodes);
+    Tree* ProcessGroup(int c, Stream *stream, stack<Tree*> *nodes);
+    Tree* ProcessStar(int c, Stream *stream, stack<Tree*> *nodes);
     Tree* NewCharNode(int c);
     void  ProcessCatPos(Tree *parent, Tree *left, Tree *right);
 
