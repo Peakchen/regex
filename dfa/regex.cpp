@@ -1,5 +1,6 @@
 #include <iostream>
 #include <list>
+#include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
 #include "regex.h"
@@ -11,9 +12,21 @@ using namespace std;
 
 Regex::Regex()
   : root_(NULL) {
+  Tree::Init();
+  State::Init();
 }
 
 Regex::~Regex() {
+  map<int, Tree*>::iterator tree_iter;
+  for (tree_iter = tree_map_.begin();
+       tree_iter != tree_map_.end(); ++tree_iter) {
+    delete tree_iter->second;
+  }
+  map<int, State*>::iterator state_iter;
+  for (state_iter = state_map_.begin();
+       state_iter != state_map_.end(); ++state_iter) {
+    delete state_iter->second;
+  }
 }
 
 void Regex::AddTree(Tree *tree) {
@@ -73,6 +86,13 @@ void  Regex::ProcessCatPos(Tree *parent, Tree *left, Tree *right) {
 Tree* Regex::ProcessChar(int c, Stream *stream, stack<Tree*> *nodes) {
   Tree *right = NewCharNode(c);
 
+  if (stream->Next() == '*') {
+    stream->Read();
+    nodes->push(right);
+    right = ProcessStar(c, stream, nodes);
+    nodes->pop();
+  }
+
   if (nodes->size() > 0) {
     Tree *left = nodes->top();nodes->pop();
     Tree *parent = new Tree(CAT);
@@ -104,6 +124,12 @@ Tree* Regex::ProcessAlter(int c, Stream *stream, stack<Tree*> *nodes) {
       right = ProcessGroup(next, stream, nodes);
     } else {
       right = NewCharNode(next);
+      if (stream->Next() == '*') {
+        stream->Read();
+        nodes->push(right);
+        right = ProcessStar(c, stream, nodes);
+        nodes->pop();
+      }
     }
     Tree *parent = new Tree(ALTER);
     AddTree(parent);
@@ -143,7 +169,9 @@ Tree* Regex::ProcessGroup(int c, Stream *stream, stack<Tree*> *nodes) {
       } else if (c == '|') {
         tree = ProcessAlter(c, stream, &new_nodes);
       } else if (c == '*') {
-        tree = ProcessStar(c, stream, &new_nodes);
+        //tree = ProcessStar(c, stream, &new_nodes);
+        cout << "ProcessGroup error\n";
+        return NULL;
       }
     }
   }
@@ -152,8 +180,15 @@ Tree* Regex::ProcessGroup(int c, Stream *stream, stack<Tree*> *nodes) {
     cout << "ProcessGroup error\n";
     return NULL;
   }
+  //assert(new_nodes.size() == 1);
 
-  nodes->push(tree);
+  if (stream->Next() == '*') {
+    stream->Read();
+    nodes->push(tree);
+    tree = ProcessStar(c, stream, nodes);
+  } else {
+    nodes->push(tree);
+  }
   return tree;
 }
 
@@ -202,11 +237,14 @@ Tree* Regex::ConstructTree(const char *str) {
       } else if (c == '|') {
         tree = ProcessAlter(c, &stream, &nodes);
       } else if (c == '*') {
-        tree = ProcessStar(c, &stream, &nodes);
+        //tree = ProcessStar(c, &stream, &nodes);
+        cout << "ConstructTree error\n";
+        return NULL;
       }
     }
   }
 
+  // CAT the last node and END node together as the root
   Tree *right = new Tree(END);
   set<Tree*> pos;
   pos.insert(right);
@@ -220,52 +258,26 @@ Tree* Regex::ConstructTree(const char *str) {
   parent->set_right(right);
 
   ProcessCatPos(parent, tree, right);
+
+  /*
+  cout << "size: " << nodes.size() << endl;
+  cout << "type: " << nodes.top()->get_type() << endl;
+  //", type: " << nodes[1]->get_type() << endl;
+  nodes.pop();
+  cout << "type: " << nodes.top()->get_type() << endl;
+  */
+  //assert(nodes.size() == 1);
+
   return parent;
 }
 
 bool Regex::Compile(const char *str) {
   cout << "complie " << str << " into regex\n";
   root_ = ConstructTree(str);
+  if (root_ == NULL) {
+    return false;
+  }
   return ConstructDFA();
-}
-
-void Regex::DoPrintNode(Tree *root) {
-  if (root == NULL) {
-    printf("Nil");
-    return;
-  }
-  switch (root->get_type()) {
-    case NORMAL:
-      printf("%c", root->get_char());
-      break;
-    case CAT:
-      printf("+");
-      break;
-    case START:
-      printf("*");
-      break;
-    case ALTER:
-      printf("|");
-      break;
-  }
-}
-
-void Regex::DoPrintTree(Tree *root) {
-  if (root == NULL) {
-    return;
-  }
-  DoPrintNode(root);
-  printf("\n");
-  printf("/");
-  printf("\t");
-  printf("\\");
-  printf("\n");
-  /*
-  */
-  DoPrintTree(root->get_left());
-  printf("\t");
-  DoPrintTree(root->get_right());
-  printf("\n");
 }
 
 void Regex::DoPrintNodePos(Tree *node) {
@@ -282,7 +294,6 @@ void Regex::DoPrintTreePos(Tree *root) {
 }
 
 void Regex::PrintTree() {
-  //DoPrintTree(root_);
   DoPrintTreePos(root_);
 }
 

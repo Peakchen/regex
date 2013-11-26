@@ -30,8 +30,6 @@ private:
     void AddTree(Tree *tree);
     
     bool ConstructDFA();
-    void DoPrintTree(Tree *root);
-    void DoPrintNode(Tree *node);
 
     void DoPrintTreePos(Tree *root);
     void DoPrintNodePos(Tree *node);

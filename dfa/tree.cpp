@@ -3,6 +3,10 @@
 
 int Tree::gIndex = 1;
 
+void Tree::Init() {
+  gIndex = 1;
+}
+
 void Tree::PrintPos() {
   cout << "index: " << index_ << endl;
   PrintPos(first_pos_, "first pos");

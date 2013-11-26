@@ -13,6 +13,8 @@ public:
   State(const set<Tree*> &tree_set);  
   ~State();
 
+  static void Init();
+
   const set<Tree*>& get_tree_set() const {
     return tree_set_;
   }

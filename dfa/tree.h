@@ -28,6 +28,7 @@ public:
     //cout << index_ << " tree type: " << type << ", c: " << (char)c << "\n";
   }
 
+  static void Init();
   void PrintPos();
 
   TreeType get_type() const { return type_; }

@@ -4,6 +4,10 @@
 
 int State::gIndex_ = 1;
 
+void State::Init() {
+  gIndex_ = 1;
+}
+
 State::State(const set<Tree*> &tree_set)
   : acceptable_(false) {
   index_ = gIndex_;
