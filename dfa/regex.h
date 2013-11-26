@@ -17,9 +17,10 @@ public:
 
 private:
     bool ConstructTree(const char *str);
-    bool ProcessChar(int c, stack<int> *ops, stack<Tree*> *nodes);
-    bool ProcessAlter(int c, stack<int> *ops, stack<Tree*> *nodes);
-    bool ProcessGroup(int c, stack<int> *ops, stack<Tree*> *nodes);
+    Tree* ProcessChar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
+    Tree* ProcessAlter(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
+    Tree* ProcessGroup(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
+    Tree* ProcessStart(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
 
 private:
 };

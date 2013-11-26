@@ -10,7 +10,8 @@ enum TreeType {
     CAT,
     START,
     ALTER,
-    GROUP
+    GROUP,
+    END,
 };
 
 class Tree {
