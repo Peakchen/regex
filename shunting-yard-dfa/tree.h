@@ -11,6 +11,8 @@ enum TreeType {
   CAT,
   START,
   ALTER,
+  LEFT_PARENTHESES,
+  RIGHT_PARENTHESES,
   END,
 };
 
