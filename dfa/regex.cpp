@@ -13,18 +13,41 @@ Regex::~Regex() {
 }
 
 Tree* Regex::ProcessChar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes) {
-  Tree *new_tree = new Tree(NORMAL, c);
+  Tree *right = new Tree(NORMAL, c);
 
   if (nodes->size() > 0) {
-    Tree *tree = nodes->top();nodes->pop();
+    Tree *left = nodes->top();nodes->pop();
     Tree *parent = new Tree(CAT);
-    parent->set_left(tree);
-    parent->set_right(new_tree);
+    parent->set_left(left);
+    parent->set_right(right);
     nodes->push(parent);
+    // for nullable
+    if (left->get_nullable() && right->get_nullable()) {
+      parent->set_nullable(true);
+    }
+    // for first pos
+    if (left->get_nullable()) {
+      parent->add_firstpos(right->get_firstpos());
+    } else {
+      parent->add_firstpos(left->get_firstpos());
+      parent->add_firstpos(right->get_firstpos());
+    }
+    // for last pos
+    if (right->get_nullable()) {
+      parent->add_lastpos(left->get_lastpos());
+    } else {
+      parent->add_lastpos(left->get_lastpos());
+      parent->add_lastpos(right->get_lastpos());
+    }
+
+    // for follow pos
+    // for cat node N=c1c2: follow_pos(c1) = first_pos(c2)
+    left->add_followpos(right->get_lastpos());
+
     return parent;
   } else {
-    nodes->push(new_tree);
-    return new_tree;
+    nodes->push(right);
+    return right;
   }
 }
 
@@ -33,29 +56,32 @@ Tree* Regex::ProcessAlter(int c, Stream *stream, stack<int> *ops, stack<Tree*> *
   Tree *tree;
 
   next = stream->Read();
-  if (isalpha(next)) {
+  if (isalpha(next) || next == '(') {
     // 取出节点栈顶的节点
     if (nodes->size() < 1) {
       return NULL;
     }
     Tree *left  = nodes->top(); nodes->pop();
-    Tree *right = new Tree(NORMAL, next);
-    Tree *parent = new Tree(ALTER);
-    parent->set_left(left);
-    parent->set_right(left);
-    nodes->push(parent);
-    return parent;
-  }
-  if (next == '(') {
-    // 取出节点栈顶的节点
-    if (nodes->size() < 1) {
-      return NULL;
+    Tree *right = NULL;
+    if (next == '(') {
+      right = ProcessGroup(next, stream, ops, nodes);
+    } else {
+      right = new Tree(NORMAL, next);
     }
-    Tree *left  = nodes->top(); nodes->pop();
-    Tree *right = ProcessGroup(next, stream, ops, nodes);
     Tree *parent = new Tree(ALTER);
     parent->set_left(left);
     parent->set_right(left);
+    // for nullable
+    if (left->get_nullable() || right->get_nullable()) {
+      parent->set_nullable(true);
+    }
+    // for first pos
+    parent->add_firstpos(left->get_firstpos());
+    parent->add_firstpos(right->get_firstpos());
+    // for last pos
+    parent->add_lastpos(left->get_lastpos());
+    parent->add_lastpos(right->get_lastpos());
+
     nodes->push(parent);
     return parent;
   }
@@ -80,7 +106,7 @@ Tree* Regex::ProcessGroup(int c, Stream *stream, stack<int> *ops, stack<Tree*> *
       } else if (c == '|') {
         tree = ProcessAlter(c, stream, &new_ops, &new_nodes);
       } else if (c == '*') {
-        tree = ProcessStart(c, stream, &new_ops, &new_nodes);
+        tree = ProcessStar(c, stream, &new_ops, &new_nodes);
       }
     }
   }
@@ -94,14 +120,27 @@ Tree* Regex::ProcessGroup(int c, Stream *stream, stack<int> *ops, stack<Tree*> *
   return tree;
 }
 
-Tree* Regex::ProcessStart(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes) {
+Tree* Regex::ProcessStar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes) {
   if (nodes->size() < 1) {
-    cout << "ProcessStart error\n";
+    cout << "ProcessStar error\n";
     return NULL;
   }
   Tree *old_node = nodes->top(); nodes->pop();
   Tree *parent = new Tree(START);
   parent->set_left(old_node);
+  // for nullable
+  parent->set_nullable(true);
+  // for first pos
+  parent->add_firstpos(old_node->get_firstpos());
+  // for last pos
+  parent->add_lastpos(old_node->get_lastpos());
+  // for follow pos
+  // for star node N: follow_pos(last_pos(N)) = first_pos(N)
+  set<Tree*> last_pos = parent->get_lastpos();
+  set<Tree*>::iterator iter;
+  for (iter = last_pos.begin(); iter != last_pos.end(); ++iter) {
+    (*iter)->add_followpos(parent->get_firstpos());
+  }
   nodes->push(parent);
 
   return parent;
@@ -126,7 +165,7 @@ bool Regex::ConstructTree(const char *str) {
       } else if (c == '|') {
         tree = ProcessAlter(c, &stream, &ops, &nodes);
       } else if (c == '*') {
-        tree = ProcessStart(c, &stream, &ops, &nodes);
+        tree = ProcessStar(c, &stream, &ops, &nodes);
       }
     }
   }

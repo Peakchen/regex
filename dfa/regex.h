@@ -20,7 +20,7 @@ private:
     Tree* ProcessChar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
     Tree* ProcessAlter(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
     Tree* ProcessGroup(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
-    Tree* ProcessStart(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
+    Tree* ProcessStar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
 
 private:
 };

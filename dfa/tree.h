@@ -2,6 +2,7 @@
 #define __TREE_H__
 
 #include <iostream>
+#include <set>
 
 using namespace std;
 
@@ -21,12 +22,43 @@ public:
       c_(c),
       left_(NULL),
       right_(NULL),
-      parent_(NULL) {
-      cout << "new tree type: " << type << ", c: " << c << "\n";
+      parent_(NULL),
+      nullable_(false) {
+    index_ = gIndex;
+    ++gIndex;
+    cout << "new tree type: " << type << ", c: " << c << "\n";
   }
 
   TreeType get_type() const { return type_; }
   int      get_char() const { return c_; }
+
+  int      get_index() const { return index_; }
+
+  bool get_nullable() const { return nullable_; }
+  void set_nullable(bool nullable) { nullable_ = nullable; }
+
+  const set<Tree*>& get_firstpos() const { return first_pos_;}
+  void add_firstpos(const set<Tree*>& firstpos) {
+    set<Tree*>::iterator iter;
+    for (iter = firstpos.begin(); iter != firstpos.end(); ++iter) {
+      first_pos_.insert(*iter);
+    }
+  }
+
+  const set<Tree*>& get_lastpos() const { return last_pos_;}
+  void add_lastpos(const set<Tree*>& last_pos) {
+    set<Tree*>::iterator iter;
+    for (iter = last_pos.begin(); iter != last_pos.end(); ++iter) {
+      last_pos_.insert(*iter);
+    }
+  }
+
+  void add_followpos(const set<Tree*>& pos) {
+    set<Tree*>::iterator iter;
+    for (iter = pos.begin(); iter != pos.end(); ++iter) {
+      follow_pos.insert(*iter);
+    }
+  }
 
   void set_left(Tree* left) {
       left_ = left;
@@ -51,10 +83,20 @@ public:
   }
 
 private:
+    static int gIndex;
+
+    int      index_;
     TreeType type_;
     int      c_;
     Tree    *left_, *right_;
     Tree    *parent_;
+
+    bool          nullable_;
+    set<Tree*> first_pos_;
+    set<Tree*> last_pos_;
+    set<Tree*> follow_pos;
 };
+
+int Tree::gIndex = 1;
 
 #endif  // __TREE_H__
