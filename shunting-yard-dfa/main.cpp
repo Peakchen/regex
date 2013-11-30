@@ -45,5 +45,18 @@ int main(int argc, char *argv[]) {
     cout << re.Match("ab") << endl;
   }
 
+  {
+    Regex re;
+
+    re.Compile("1a*b*|c");
+
+    cout << re.Match("1a") << endl;
+    cout << re.Match("1b") << endl;
+    cout << re.Match("1aab") << endl;
+    cout << re.Match("1abb") << endl;
+    cout << re.Match("1abbc") << endl;
+    cout << re.Match("1c") << endl;
+  }
+
   return 0;
 }

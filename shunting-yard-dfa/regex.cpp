@@ -77,14 +77,17 @@ Tree* Regex::NewCharNode(int c) {
 
 void Regex::PushOperator(int opc, Stream *stream, stack<int> *operater,
                           stack<Tree*> *nodes) {
-  if (operater->size() > 0) {
+  while (operater->size() > 0) {
     opHandler *old_op = op_map_[operater->top()];
     opHandler *op = op_map_[opc];
     if (old_op->priority_ > op->priority_) {
       Handler handler = old_op->handler_;
       Tree* tree = (this->*handler)(opc, stream, operater, nodes);
+    } else {
+      break;
     }
   }
+
   operater->push(opc);
 }
 
@@ -228,7 +231,7 @@ Tree* Regex::ConstructTree(const char *str) {
 
   do {
     c = stream.Read();
-    if (isalpha(c)) {
+    if (isalnum(c)) {
       tree = ProcessChar(c, &stream, &operater, &nodes);
       last_char_ = c;
     } else if (c == '(') {
@@ -238,7 +241,7 @@ Tree* Regex::ConstructTree(const char *str) {
       PushOperator(c, &stream, &operater, &nodes);
       last_char_ = c;
     } else if (c != '\0') {
-      cout << "ConstructTree error\n";
+      cout << "ConstructTree error: " << char(c) << endl;
       return NULL;
     }
   } while(c != '\0' && tree != NULL);
