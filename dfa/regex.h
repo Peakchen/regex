@@ -16,6 +16,7 @@ public:
 
     bool Compile(const char *str);
     bool Match(const char *str);
+    void PrintTree();
 
 private:
     Tree* ConstructTree(const char *str);
@@ -23,15 +24,19 @@ private:
     Tree* ProcessAlter(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
     Tree* ProcessGroup(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
     Tree* ProcessStar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
+    Tree* NewCharNode(int c);
 
     void AddTree(Tree *tree);
     
-    bool ConstructDFA(Tree *root);
+    bool ConstructDFA();
+    void DoPrintTree(Tree *root);
+    void DoPrintNode(Tree *node);
 
 private:
     map<int, Tree*> tree_map_;
     map<int, bool>  chars_map_;
     map<int, State*> state_map_;
+    Tree* root_;
 };
 
 #endif  // __REGEX_H__

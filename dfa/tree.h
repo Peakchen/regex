@@ -11,7 +11,6 @@ enum TreeType {
     CAT,
     START,
     ALTER,
-    GROUP,
     END,
 };
 
@@ -38,25 +37,22 @@ public:
   void set_nullable(bool nullable) { nullable_ = nullable; }
 
   const set<Tree*>& get_firstpos() const { return first_pos_;}
-  void add_firstpos(const set<Tree*>& firstpos) {
-    set<Tree*>::iterator iter;
-    for (iter = firstpos.begin(); iter != firstpos.end(); ++iter) {
-      first_pos_.insert(*iter);
-    }
+  void add_firstpos(const set<Tree*>& first_pos) {
+    first_pos_.insert(first_pos.begin(), first_pos.end());
   }
 
   const set<Tree*>& get_lastpos() const { return last_pos_;}
   void add_lastpos(const set<Tree*>& last_pos) {
-    set<Tree*>::iterator iter;
-    for (iter = last_pos.begin(); iter != last_pos.end(); ++iter) {
-      last_pos_.insert(*iter);
-    }
+    last_pos_.insert(last_pos.begin(), last_pos.end());
   }
 
-  void add_followpos(const set<Tree*>& pos) {
+  void add_followpos(const set<Tree*>& follow_pos) {
+    follow_pos_.insert(follow_pos.begin(), follow_pos.end());
     set<Tree*>::iterator iter;
-    for (iter = pos.begin(); iter != pos.end(); ++iter) {
-      follow_pos_.insert(*iter);
+    for (iter = follow_pos.begin(); iter != follow_pos.end(); ++iter) {
+      if ((*iter)->get_type() == END) {
+        cout << "add END!!!!\n";
+      }
     }
   }
   const set<Tree*>& get_follow_pos() const { return follow_pos_;}
@@ -97,7 +93,5 @@ private:
     set<Tree*> last_pos_;
     set<Tree*> follow_pos_;
 };
-
-int Tree::gIndex = 1;
 
 #endif  // __TREE_H__

@@ -13,16 +13,16 @@ public:
   State(const set<Tree*> &tree_set);  
   ~State();
 
-  const map<int, Tree*>& get_tree_map() const {
-    return tree_map_;
-  }
-
   const set<Tree*>& get_tree_set() const {
     return tree_set_;
   }
 
   void set_marked() {
     marked_ = true;
+  }
+
+  bool get_acceptable() const {
+    return acceptable_;
   }
 
   int get_index() const {
@@ -35,10 +35,10 @@ public:
   }
 
 private:
-  map<int, Tree*> tree_map_;
   map<int, State*> transfer_map_;
   set<Tree*> tree_set_;
   bool marked_;
+  bool acceptable_;
   int  index_;
   static int gIndex_;
 };

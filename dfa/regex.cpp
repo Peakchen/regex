@@ -1,6 +1,7 @@
 #include <iostream>
-#include <ctype.h>
 #include <list>
+#include <ctype.h>
+#include <stdio.h>
 #include "regex.h"
 #include "state.h"
 #include "stream.h"
@@ -8,7 +9,8 @@
 
 using namespace std;
 
-Regex::Regex() {
+Regex::Regex()
+  : root_(NULL) {
 }
 
 Regex::~Regex() {
@@ -18,11 +20,20 @@ void Regex::AddTree(Tree *tree) {
   tree_map_[tree->get_index()] = tree;
 }
 
-Tree* Regex::ProcessChar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes) {
-  Tree *right = new Tree(NORMAL, c);
-  AddTree(right);
+Tree* Regex::NewCharNode(int c) {
+  Tree *tree = new Tree(NORMAL, c);
+  AddTree(tree);
+  set<Tree*> pos;
+  pos.insert(tree);
+  tree->add_firstpos(pos);
+  tree->add_lastpos(pos);
 
   chars_map_[c] = true;
+  return tree;
+}
+
+Tree* Regex::ProcessChar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes) {
+  Tree *right = NewCharNode(c);
 
   if (nodes->size() > 0) {
     Tree *left = nodes->top();nodes->pop();
@@ -37,22 +48,26 @@ Tree* Regex::ProcessChar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *n
     }
     // for first pos
     if (left->get_nullable()) {
+      parent->add_firstpos(left->get_firstpos());
       parent->add_firstpos(right->get_firstpos());
     } else {
       parent->add_firstpos(left->get_firstpos());
-      parent->add_firstpos(right->get_firstpos());
     }
     // for last pos
     if (right->get_nullable()) {
       parent->add_lastpos(left->get_lastpos());
+      parent->add_lastpos(right->get_lastpos());
     } else {
-      parent->add_lastpos(left->get_lastpos());
       parent->add_lastpos(right->get_lastpos());
     }
 
     // for follow pos
-    // for cat node N=c1c2: follow_pos(c1) = first_pos(c2)
-    left->add_followpos(right->get_lastpos());
+    // for cat node N=c1c2: follow_pos(last_pos(c1)) = first_pos(c2)
+    set<Tree*>::iterator iter;
+    const set<Tree*>& last_pos = left->get_lastpos();
+    for (iter = last_pos.begin(); iter != last_pos.end(); ++iter) {
+      (*iter)->add_followpos(right->get_firstpos());
+    }
 
     return parent;
   } else {
@@ -76,13 +91,12 @@ Tree* Regex::ProcessAlter(int c, Stream *stream, stack<int> *ops, stack<Tree*> *
     if (next == '(') {
       right = ProcessGroup(next, stream, ops, nodes);
     } else {
-      right = new Tree(NORMAL, next);
-      AddTree(right);
+      right = NewCharNode(c);
     }
     Tree *parent = new Tree(ALTER);
     AddTree(parent);
     parent->set_left(left);
-    parent->set_right(left);
+    parent->set_right(right);
     // for nullable
     if (left->get_nullable() || right->get_nullable()) {
       parent->set_nullable(true);
@@ -123,7 +137,7 @@ Tree* Regex::ProcessGroup(int c, Stream *stream, stack<int> *ops, stack<Tree*> *
     }
   }
 
-  if (c == '\0') {
+  if (c != ')') {
     cout << "ProcessGroup error\n";
     return NULL;
   }
@@ -149,7 +163,7 @@ Tree* Regex::ProcessStar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *n
   parent->add_lastpos(old_node->get_lastpos());
   // for follow pos
   // for star node N: follow_pos(last_pos(N)) = first_pos(N)
-  set<Tree*> last_pos = parent->get_lastpos();
+  const set<Tree*>& last_pos = parent->get_lastpos();
   set<Tree*>::iterator iter;
   for (iter = last_pos.begin(); iter != last_pos.end(); ++iter) {
     (*iter)->add_followpos(parent->get_firstpos());
@@ -194,17 +208,58 @@ Tree* Regex::ConstructTree(const char *str) {
 }
 
 bool Regex::Compile(const char *str) {
-  Tree *root = NULL;
-
-  root = ConstructTree(str);
-  return ConstructDFA(root);
+  root_ = ConstructTree(str);
+  return ConstructDFA();
 }
 
-bool Regex::ConstructDFA(Tree *root) {
+void Regex::DoPrintNode(Tree *root) {
+  if (root == NULL) {
+    printf("Nil");
+    return;
+  }
+  switch (root->get_type()) {
+    case NORMAL:
+      printf("%c", root->get_char());
+      break;
+    case CAT:
+      printf("+");
+      break;
+    case START:
+      printf("*");
+      break;
+    case ALTER:
+      printf("|");
+      break;
+  }
+}
+
+void Regex::DoPrintTree(Tree *root) {
+  if (root == NULL) {
+    return;
+  }
+  DoPrintNode(root);
+  printf("\n");
+  printf("/");
+  printf("\t");
+  printf("\\");
+  printf("\n");
+  /*
+  */
+  DoPrintTree(root->get_left());
+  printf("\t");
+  DoPrintTree(root->get_right());
+  printf("\n");
+}
+
+void Regex::PrintTree() {
+  DoPrintTree(root_);
+}
+
+bool Regex::ConstructDFA() {
   list<State *> unmarked_states;
   State *state;
 
-  state = new State(root->get_firstpos());
+  state = new State(root_->get_firstpos());
   unmarked_states.push_back(state);
   while (!unmarked_states.empty()) {
     state = unmarked_states.front(); unmarked_states.pop_front();
@@ -231,6 +286,7 @@ bool Regex::ConstructDFA(Tree *root) {
       for (state_iter = state_map_.begin();
            state_iter != state_map_.end(); ++state_iter) {
         if (state_iter->second->get_tree_set() == followset) {
+          printf("break\n");
           follow_state = state_iter->second;
           break;
         }
@@ -262,5 +318,8 @@ bool Regex::Match(const char *str) {
     }
     ++str;
   }
-  return true;
+  if (state != NULL && state->get_acceptable()) {
+    return true;
+  }
+  return false;
 }

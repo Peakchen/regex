@@ -1,12 +1,24 @@
+#include <iostream>
 #include "state.h"
+#include "tree.h"
 
 int State::gIndex_ = 1;
 
 State::State(const set<Tree*> &tree_set)
-  : marked_(false) {
+  : marked_(false),
+    acceptable_(false) {
   index_ = gIndex_;
   ++gIndex_;
   tree_set_ = tree_set;
+  set<Tree*>::iterator iter;
+  for (iter = tree_set_.begin();
+       iter != tree_set_.end(); ++iter) {
+    if ((*iter)->get_type() == END) {
+      acceptable_ = true;
+      cout << "index: " << index_ << " accept\n";
+      break;
+    }
+  }
 }
 
 State::~State() {
