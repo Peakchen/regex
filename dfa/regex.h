@@ -25,6 +25,7 @@ private:
     Tree* ProcessGroup(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
     Tree* ProcessStar(int c, Stream *stream, stack<int> *ops, stack<Tree*> *nodes);
     Tree* NewCharNode(int c);
+    void  ProcessCatPos(Tree *parent, Tree *left, Tree *right);
 
     void AddTree(Tree *tree);
     
@@ -32,6 +33,8 @@ private:
     void DoPrintTree(Tree *root);
     void DoPrintNode(Tree *node);
 
+    void DoPrintTreePos(Tree *root);
+    void DoPrintNodePos(Tree *node);
 private:
     map<int, Tree*> tree_map_;
     map<int, bool>  chars_map_;

@@ -25,8 +25,10 @@ public:
     nullable_(false) {
     index_ = gIndex;
     ++gIndex;
-    cout << "new tree type: " << type << ", c: " << c << "\n";
+    //cout << index_ << " tree type: " << type << ", c: " << (char)c << "\n";
   }
+
+  void PrintPos();
 
   TreeType get_type() const { return type_; }
   int      get_char() const { return c_; }
@@ -48,12 +50,6 @@ public:
 
   void add_followpos(const set<Tree*>& follow_pos) {
     follow_pos_.insert(follow_pos.begin(), follow_pos.end());
-    set<Tree*>::iterator iter;
-    for (iter = follow_pos.begin(); iter != follow_pos.end(); ++iter) {
-      if ((*iter)->get_type() == END) {
-        cout << "add END!!!!\n";
-      }
-    }
   }
   const set<Tree*>& get_follow_pos() const { return follow_pos_;}
 
@@ -78,6 +74,9 @@ public:
   Tree* get_right() {
     return right_;
   }
+
+private:
+  void PrintPos(const set<Tree*> &pos, const char *tag);
 
 private:
   static int gIndex;

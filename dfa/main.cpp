@@ -12,9 +12,8 @@ int main(int argc, char *argv[]) {
     cout << re.Match("aabb") << endl;
     cout << re.Match("abb") << endl;
     cout << re.Match("b") << endl;
-    return 0;
-    cout << re.Match("ab") << endl;
-    cout << re.Match("bcd") << endl;
+    cout << re.Match("babb") << endl;
+    cout << re.Match("bbababb") << endl;
 
     return 0;
 }
