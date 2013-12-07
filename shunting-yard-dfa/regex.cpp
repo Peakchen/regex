@@ -1,4 +1,5 @@
 #include <list>
+#include <assert.h>
 #include "regex.h"
 #include "tree.h"
 #include "state.h"
@@ -7,6 +8,11 @@
 Regex::Regex()
   : root_(NULL),
     last_char_(-1) {
+  op_map_['*'] = new opHandler(3, &Regex::ProcessStar);
+  op_map_['+'] = new opHandler(2, &Regex::ProcessCat);
+  op_map_['|'] = new opHandler(1, &Regex::ProcessAlter);
+  Tree::Init();
+  State::Init();
 }
 
 Regex::~Regex() {
@@ -14,19 +20,6 @@ Regex::~Regex() {
 
 void Regex::AddTree(Tree *tree) {
   tree_map_[tree->get_index()] = tree;
-}
-
-Tree* Regex::NewCharNode(int c) {
-  Tree *tree = new Tree(NORMAL, c);
-  AddTree(tree);
-  set<Tree*> pos;
-  pos.insert(tree);
-  // N = char node;fisrpos(N) = lastpos(N) = {N}
-  tree->add_firstpos(pos);
-  tree->add_lastpos(pos);
-
-  chars_map_[c] = true;
-  return tree;
 }
 
 void  Regex::ProcessCatPos(Tree *parent, Tree *left, Tree *right) {
@@ -66,62 +59,47 @@ void  Regex::ProcessCatPos(Tree *parent, Tree *left, Tree *right) {
   }
 }
 
-Tree* Regex::ProcessChar(int c, Stream *stream, stack<int> *operater,
+Tree* Regex::NewCharNode(int c) {
+  Tree *tree = new Tree(NORMAL, c);
+  AddTree(tree);
+  set<Tree*> pos;
+  pos.insert(tree);
+  // N = char node;fisrpos(N) = lastpos(N) = {N}
+  tree->add_firstpos(pos);
+  tree->add_lastpos(pos);
+
+  chars_map_[c] = true;
+  return tree;
+}
+
+Tree* Regex::ProcessChar(int c, Stream *stream,
+                         stack<int> *operater,
                          stack<Tree*> *nodes) {
   Tree *right = NewCharNode(c);
-
-  if (last_char_ == '|' || last_char_ != ')') {
-    return right;
+  if (last_char_ == '|') {
+    goto out;
   }
 
   if (nodes->empty()) {
-    nodes->push(right);
-    return right;
+    goto out;
   }
 
-  Tree *left = nodes->top(); nodes->pop();
-  Tree *parent = new Tree(CAT);
-  AddTree(parent);
-  parent->set_left(left);
-  parent->set_right(right);
-  nodes->push(parent);
-  ProcessCatPos(parent, left, right);
-  return parent;
+  operater->push('+');
+out:
+  nodes->push(right);
+  return right;
 }
 
-Tree* Regex::ProcessAlter(int c, Stream *stream, stack<int> *operater,
-                          stack<Tree*> *nodes) {
-  if (nodes->size() < 2) {
-    cout << "ProcessAlter error";
-    return NULL;
-  }
-  Tree *right = nodes->top(); nodes->pop();
-  Tree *left  = nodes->top(); nodes->pop();
-  Tree *parent = new Tree(ALTER);
-  AddTree(parent);
-  parent->set_left(left);
-  parent->set_right(right);
-  // for nullable
-  if (left->get_nullable() || right->get_nullable()) {
-    parent->set_nullable(true);
-  }
-  // for first pos
-  parent->add_firstpos(left->get_firstpos());
-  parent->add_firstpos(right->get_firstpos());
-  // for last pos
-  parent->add_lastpos(left->get_lastpos());
-  parent->add_lastpos(right->get_lastpos());
-
-  nodes->push(parent);
-  return parent;
-}
-
-Tree* Regex::ProcessStar(int c, Stream *stream, stack<int> *operater,
+Tree* Regex::ProcessStar(int c, Stream *stream,
+                         stack<int> *operater,
                          stack<Tree*> *nodes) {
   if (nodes->size() < 1) {
     cout << "ProcessStar error\n";
     return NULL;
   }
+  assert(operater->top() == '*');
+  operater->pop();
+
   Tree *old_node = nodes->top(); nodes->pop();
   Tree *parent = new Tree(START);
   AddTree(parent);
@@ -144,37 +122,58 @@ Tree* Regex::ProcessStar(int c, Stream *stream, stack<int> *operater,
   return parent;
 }
 
-Tree* Regex::ProcessGroup(int c, Stream *stream, stack<int> *operater,
-                          stack<Tree*> *nodes) {
-  Tree *tree;
-
-  c = stream->Read();
-  while (c != '\0' && c != ')') {
-    if (isalpha(c)) {
-      tree = ProcessChar(c, stream, operater, nodes);
-      last_char_ = c;
-    } else if (c == '|' || c == '*') {
-      operater->push(c);
-      last_char_ = c;
-    } else {
-      cout << "error char: " << (char)c << "\n";
-      return NULL;
-    }
-  }
-
-  if (c != ')') {
-    cout << "ProcessGroup error\n";
+Tree* Regex::ProcessCat(int c, Stream *stream,
+                        stack<int> *operater,
+                        stack<Tree*> *nodes) {
+  if (nodes->size() < 2) {
+    cout << "ProcessCat error\n";
     return NULL;
   }
-  c = operater->top();operater->pop();
-  while (c != '(') {
-    if (c == '|') {
-      tree = ProcessAlter(c, stream, operater, nodes);
-    } else if (c == '*') {
-      tree = ProcessStar(c, stream, operater, nodes);
-    }
-    c = operater->top();operater->pop();
+  assert(operater->top() == '+');
+  operater->pop();
+  Tree *right = nodes->top(); nodes->pop();
+  Tree *left = nodes->top(); nodes->pop();
+  Tree *parent = new Tree(CAT);
+  AddTree(parent);
+  parent->set_left(left);
+  parent->set_right(right);
+  nodes->push(parent);
+  ProcessCatPos(parent, left, right);
+  return parent;
+}
+
+Tree* Regex::ProcessAlter(int c, Stream *stream,
+                          stack<int> *operater,
+                          stack<Tree*> *nodes) {
+  if (nodes->size() < 2) {
+    cout << "ProcessAlter error\n";
+    return NULL;
   }
+  assert(operater->top() == '|');
+  operater->pop();
+  Tree *right = nodes->top(); nodes->pop();
+  Tree *left  = nodes->top(); nodes->pop();
+  Tree *parent = new Tree(ALTER);
+  AddTree(parent);
+  parent->set_left(left);
+  parent->set_right(right);
+  // for nullable
+  if (left->get_nullable() || right->get_nullable()) {
+    parent->set_nullable(true);
+  }
+  // for first pos
+  parent->add_firstpos(left->get_firstpos());
+  parent->add_firstpos(right->get_firstpos());
+  // for last pos
+  parent->add_lastpos(left->get_lastpos());
+  parent->add_lastpos(right->get_lastpos());
+
+  nodes->push(parent);
+  return parent;
+}
+
+bool  Regex::isOperator(int c) {
+  return (c == '*' || c == '|');
 }
 
 Tree* Regex::ConstructTree(const char *str) {
@@ -184,27 +183,43 @@ Tree* Regex::ConstructTree(const char *str) {
   Stream stream(str);
   int c;
 
-  while ((c = stream.Read()) != '\0') {
+  do {
+    c = stream.Read();
     if (isalpha(c)) {
       tree = ProcessChar(c, &stream, &operater, &nodes);
       last_char_ = c;
     } else if (c == '(') {
-      operater.push(c);
-      tree = ProcessGroup(c, &stream, &operater, &nodes);
-    } else if (c == '|' ||  c == '*') {
+      //operater.push(c);
+      //tree = ProcessGroup(c, &stream, &operater, &nodes);
+    } else if (isOperator(c)) {
+      if (operater.size() > 0) {
+        opHandler *old_op = op_map_[operater.top()];
+        opHandler *op = op_map_[c];
+        if (old_op->priority_ > op->priority_) {
+          Handler handler = old_op->handler_;
+          tree = (this->*handler)(c, &stream, &operater, &nodes);
+        }
+      }
       operater.push(c);
       last_char_ = c;
+    } else if (c != '\0') {
+      cout << "ConstructTree error\n";
+      return NULL;
     }
+  } while(c != '\0' && tree != NULL);
+
+  if (tree == NULL) {
+    return NULL;
+  }
+  if (c != '\0') {
+    return NULL;
   }
 
-  // back
   while (!operater.empty()) {
-    c = operater.top();operater.pop();
-    if (c == '|') {
-      tree = ProcessAlter(c, &stream, &operater, &nodes);
-    } else if (c == '*') {
-      tree = ProcessStar(c, &stream, &operater, &nodes);
-    }
+    c = operater.top();
+    opHandler *op = op_map_[c];
+    Handler handler = op->handler_;
+    tree = (this->*handler)(c, &stream, &operater, &nodes);
   }
 
   // CAT the last node and END node together as the root
