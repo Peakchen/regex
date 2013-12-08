@@ -5,12 +5,15 @@
 #include "state.h"
 #include "stream.h"
 
+#define SENTRY 256
+
 Regex::Regex()
   : root_(NULL),
     last_char_(-1) {
   op_map_['*'] = new opHandler(3, &Regex::ProcessStar);
   op_map_['+'] = new opHandler(2, &Regex::ProcessCat);
   op_map_['|'] = new opHandler(1, &Regex::ProcessAlter);
+  op_map_[SENTRY] = new opHandler(0, &Regex::ProcessSentry);
   Tree::Init();
   State::Init();
 }
@@ -72,6 +75,19 @@ Tree* Regex::NewCharNode(int c) {
   return tree;
 }
 
+void Regex::PushOperator(int opc, Stream *stream, stack<int> *operater,
+                          stack<Tree*> *nodes) {
+  if (operater->size() > 0) {
+    opHandler *old_op = op_map_[operater->top()];
+    opHandler *op = op_map_[opc];
+    if (old_op->priority_ > op->priority_) {
+      Handler handler = old_op->handler_;
+      Tree* tree = (this->*handler)(opc, stream, operater, nodes);
+    }
+  }
+  operater->push(opc);
+}
+
 Tree* Regex::ProcessChar(int c, Stream *stream,
                          stack<int> *operater,
                          stack<Tree*> *nodes) {
@@ -84,7 +100,8 @@ Tree* Regex::ProcessChar(int c, Stream *stream,
     goto out;
   }
 
-  operater->push('+');
+  PushOperator('+', stream, operater, nodes);
+
 out:
   nodes->push(right);
   return right;
@@ -101,7 +118,7 @@ Tree* Regex::ProcessStar(int c, Stream *stream,
   operater->pop();
 
   Tree *old_node = nodes->top(); nodes->pop();
-  Tree *parent = new Tree(START);
+  Tree *parent = new Tree(STAR);
   AddTree(parent);
   parent->set_left(old_node);
   // for nullable
@@ -176,12 +193,38 @@ bool  Regex::isOperator(int c) {
   return (c == '*' || c == '|');
 }
 
+Tree* Regex::ProcessSentry(int c, Stream *stream, stack<int> *operater,
+                           stack<Tree*> *nodes) {
+  assert(c == SENTRY);
+  operater->pop();
+  // CAT the last node and END node together as the root
+  Tree *left  = nodes->top(); nodes->pop();
+  Tree *right = new Tree(END);
+  set<Tree*> pos;
+  pos.insert(right);
+  right->add_firstpos(pos);
+  right->add_lastpos(pos);
+
+  Tree *parent = new Tree(CAT);
+  AddTree(parent);
+  parent->set_left(left);
+  AddTree(right);
+  parent->set_right(right);
+
+  ProcessCatPos(parent, left, right);
+
+  return parent;
+}
+
 Tree* Regex::ConstructTree(const char *str) {
   stack<int> operater;
   stack<Tree*> nodes;
   Tree *tree;
   Stream stream(str);
   int c;
+
+  // first push SENTRY operator as operator stack
+  operater.push(SENTRY);
 
   do {
     c = stream.Read();
@@ -192,15 +235,7 @@ Tree* Regex::ConstructTree(const char *str) {
       //operater.push(c);
       //tree = ProcessGroup(c, &stream, &operater, &nodes);
     } else if (isOperator(c)) {
-      if (operater.size() > 0) {
-        opHandler *old_op = op_map_[operater.top()];
-        opHandler *op = op_map_[c];
-        if (old_op->priority_ > op->priority_) {
-          Handler handler = old_op->handler_;
-          tree = (this->*handler)(c, &stream, &operater, &nodes);
-        }
-      }
-      operater.push(c);
+      PushOperator(c, &stream, &operater, &nodes);
       last_char_ = c;
     } else if (c != '\0') {
       cout << "ConstructTree error\n";
@@ -221,6 +256,8 @@ Tree* Regex::ConstructTree(const char *str) {
     Handler handler = op->handler_;
     tree = (this->*handler)(c, &stream, &operater, &nodes);
   }
+
+  return tree;
 
   // CAT the last node and END node together as the root
   Tree *right = new Tree(END);

@@ -20,6 +20,8 @@ public:
 
 private:
   Tree* ConstructTree(const char *str);
+  Tree* ProcessSentry(int c, Stream *stream, stack<int> *operater,
+                    stack<Tree*> *nodes);
   Tree* ProcessChar(int c, Stream *stream, stack<int> *operater,
                     stack<Tree*> *nodes);
   Tree* ProcessGroup(int c, Stream *stream, stack<int> *operater,
@@ -30,6 +32,9 @@ private:
                     stack<Tree*> *nodes);
   Tree* ProcessCat(int c, Stream *stream, stack<int> *operater,
                    stack<Tree*> *nodes);
+
+  void  PushOperator(int c, Stream *stream, stack<int> *operater,
+                     stack<Tree*> *nodes);
 
   bool ConstructDFA();
   void  ProcessCatPos(Tree *parent, Tree *left, Tree *right);

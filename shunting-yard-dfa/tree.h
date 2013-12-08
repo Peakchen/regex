@@ -9,7 +9,7 @@ using namespace std;
 enum TreeType {
   NORMAL = 0,
   CAT,
-  START,
+  STAR,
   ALTER,
   LEFT_PARENTHESES,
   RIGHT_PARENTHESES,

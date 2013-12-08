@@ -44,5 +44,6 @@ int main(int argc, char *argv[]) {
     cout << re.Match("bc") << endl;
     cout << re.Match("ab") << endl;
   }
+
   return 0;
 }
